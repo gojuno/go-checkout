@@ -6,6 +6,7 @@ import (
 )
 
 // CallError represents possible client error.
+// Used status codes: https://docs.checkout.com/v2.0/docs/response-codes
 type CallError struct {
 	StatusCode int
 }
@@ -17,6 +18,7 @@ func (e *CallError) Error() string {
 
 // ValidationError represents validation API error response.
 // https://docs.checkout.com/v2.0/docs/validation-errors
+// https://docs.checkout.com/v2.0/docs/response-codes
 type ValidationError struct {
 	RequestID  string   `json:"request_id"`
 	ErrorType  string   `json:"error_type"`

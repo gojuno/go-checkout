@@ -125,7 +125,7 @@ func TestCall_WithResponse(t *testing.T) {
 		secretKey:  "secret_key",
 	}
 
-	err := client.Call(
+	statusCode, err := client.Call(
 		context.Background(),
 		"POST",
 		"somepath",
@@ -136,6 +136,10 @@ func TestCall_WithResponse(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Call returned error: %v", err)
+	}
+
+	if statusCode != http.StatusOK {
+		t.Errorf("Call returned unexpected status code: %d", statusCode)
 	}
 
 	if response.Field != "response_value" {
@@ -159,7 +163,7 @@ func TestCall_WithCallError(t *testing.T) {
 
 	client := Client{httpClient: httpClientMock}
 
-	err := client.Call(
+	statusCode, err := client.Call(
 		context.Background(),
 		"POST",
 		"somepath",
@@ -178,6 +182,10 @@ func TestCall_WithCallError(t *testing.T) {
 	} else {
 		t.Errorf("Call return invalid error type: %T", err)
 	}
+
+	if statusCode != http.StatusBadRequest {
+		t.Errorf("Call returned unexpected status code: %d", statusCode)
+	}
 }
 
 func TestCall_WithTransportError(t *testing.T) {
@@ -193,7 +201,7 @@ func TestCall_WithTransportError(t *testing.T) {
 
 	client := Client{httpClient: httpClientMock}
 
-	err := client.Call(
+	statusCode, err := client.Call(
 		context.Background(),
 		"POST",
 		"somepath",
@@ -207,5 +215,9 @@ func TestCall_WithTransportError(t *testing.T) {
 	}
 	if errors.Cause(err).Error() != "do_error" {
 		t.Errorf("Invalid error cause: %v", errors.Cause(err))
+	}
+
+	if statusCode != 0 {
+		t.Errorf("Call returned unexpected status code: %d", statusCode)
 	}
 }

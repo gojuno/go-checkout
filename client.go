@@ -18,7 +18,7 @@ import (
 // Client implements this interface and pass itself to entity clients. You may create entity clients with own caller for
 // test purposes.
 type Caller interface {
-	Call(ctx context.Context, method, path string, headers map[string]string, reqObj interface{}, respObj interface{}) error
+	Call(ctx context.Context, method, path string, idempotencyKey string, reqObj interface{}, respObj interface{}) (statusCode int, callErr error)
 }
 
 // HTTPClient is interface fot HTTP client. Built-in net/http.Client implements this interface as well.
@@ -71,20 +71,20 @@ func OptSecretKey(secretKey string) Option {
 
 // Call does HTTP request with given params using set HTTP client. Response will be decoded into respObj.
 // CallError may be returned if something went wrong. If API return error as response, then Call returns error of type checkout.CallError.
-func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey string, reqObj interface{}, respObj interface{}) (callErr error) {
+func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey string, reqObj interface{}, respObj interface{}) (statusCode int, callErr error) {
 	var reqBody io.Reader
 
 	if reqObj != nil {
 		reqBodyBytes, err := json.Marshal(reqObj)
 		if err != nil {
-			return errors.Wrap(err, "failed to marshal request body")
+			return 0, errors.Wrap(err, "failed to marshal request body")
 		}
 		reqBody = bytes.NewBuffer(reqBodyBytes)
 	}
 
 	req, err := http.NewRequest(method, apiURL+path, reqBody)
 	if err != nil {
-		return errors.Wrap(err, "failed to create HTTP request")
+		return 0, errors.Wrap(err, "failed to create HTTP request")
 	}
 
 	req = req.WithContext(ctx)
@@ -98,7 +98,7 @@ func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey s
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "failed to do request")
+		return 0, errors.Wrap(err, "failed to do request")
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -110,18 +110,18 @@ func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey s
 	if resp.StatusCode == http.StatusUnprocessableEntity {
 		respBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return errors.Wrap(err, "failed to read response body")
+			return resp.StatusCode, errors.Wrap(err, "failed to read response body")
 		}
 		var validationError ValidationError
 		if err := json.Unmarshal(respBody, &validationError); err != nil {
-			return errors.Wrapf(err, "failed to unmarshal response error with status %d: %s", resp.StatusCode, string(respBody))
+			return resp.StatusCode, errors.Wrapf(err, "failed to unmarshal response error with status %d: %s", resp.StatusCode, string(respBody))
 		}
-		return &validationError
+		return resp.StatusCode, &validationError
 	}
 
 	// All codes below 400 are supposed to be business errors and should be handled by entity clients
 	if resp.StatusCode >= http.StatusBadRequest {
-		return &CallError{
+		return resp.StatusCode, &CallError{
 			StatusCode: resp.StatusCode,
 		}
 	}
@@ -130,17 +130,17 @@ func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey s
 	if respObj != nil {
 		respBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return errors.Wrap(err, "failed to read response body")
+			return resp.StatusCode, errors.Wrap(err, "failed to read response body")
 		}
 		if err := json.Unmarshal(respBody, respObj); err != nil {
-			return errors.Wrapf(err, "failed to unmarshal response body: %s", string(respBody))
+			return resp.StatusCode, errors.Wrapf(err, "failed to unmarshal response body: %s", string(respBody))
 		}
 	}
 
-	return nil
+	return resp.StatusCode, nil
 }
 
 // Payment creates client for work with corresponding entity.
-//func (c *Client) Payment() *PaymentClient {
-//	return &PaymentClient{Caller: c}
-//}
+func (c *Client) Payment() *PaymentClient {
+	return &PaymentClient{Caller: c}
+}
