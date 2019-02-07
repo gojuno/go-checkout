@@ -32,11 +32,12 @@ type Option func(*Client)
 // Client contains API parameters and provides set of API entity clients.
 type Client struct {
 	httpClient HTTPClient
+	endpoint   string
 	secretKey  string
 }
 
 const (
-	apiURL = "https://api.checkout.com/"
+	defaultEndpoint = "https://api.checkout.com/"
 
 	headerAuthorization = "Authorization"
 	headerIdempotency   = "Cko-Idempotency-Key"
@@ -46,6 +47,7 @@ const (
 func New(options ...Option) *Client {
 	c := &Client{
 		httpClient: http.DefaultClient,
+		endpoint:   defaultEndpoint,
 	}
 
 	for _, option := range options {
@@ -69,6 +71,13 @@ func OptSecretKey(secretKey string) Option {
 	}
 }
 
+// OptEndpoint returns option with given API endpoint.
+func OptEndpoint(endpoint string) Option {
+	return func(c *Client) {
+		c.endpoint = endpoint
+	}
+}
+
 // Call does HTTP request with given params using set HTTP client. Response will be decoded into respObj.
 // CallError may be returned if something went wrong. If API return error as response, then Call returns error of type checkout.CallError.
 func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey string, reqObj interface{}, respObj interface{}) (statusCode int, callErr error) {
@@ -82,7 +91,7 @@ func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey s
 		reqBody = bytes.NewBuffer(reqBodyBytes)
 	}
 
-	req, err := http.NewRequest(method, apiURL+path, reqBody)
+	req, err := http.NewRequest(method, c.endpoint+path, reqBody)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to create HTTP request")
 	}

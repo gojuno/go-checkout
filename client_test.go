@@ -120,10 +120,7 @@ func TestCall_WithResponse(t *testing.T) {
 		Field string `json:"field"`
 	}{}
 
-	client := Client{
-		httpClient: httpClientMock,
-		secretKey:  "secret_key",
-	}
+	client := New(OptHTTPClient(httpClientMock), OptSecretKey("secret_key"))
 
 	statusCode, err := client.Call(
 		context.Background(),
@@ -161,7 +158,7 @@ func TestCall_WithCallError(t *testing.T) {
 		Field: "request_value",
 	}
 
-	client := Client{httpClient: httpClientMock}
+	client := New(OptHTTPClient(httpClientMock))
 
 	statusCode, err := client.Call(
 		context.Background(),
@@ -199,7 +196,7 @@ func TestCall_WithTransportError(t *testing.T) {
 		Field: "request_value",
 	}
 
-	client := Client{httpClient: httpClientMock}
+	client := New(OptHTTPClient(httpClientMock))
 
 	statusCode, err := client.Call(
 		context.Background(),
