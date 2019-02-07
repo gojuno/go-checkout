@@ -5,14 +5,14 @@ import (
 	"fmt"
 )
 
-// CallError represents possible client error.
+// ServerError represents possible server error.
 // Used status codes: https://docs.checkout.com/v2.0/docs/response-codes
-type CallError struct {
+type ServerError struct {
 	StatusCode int
 }
 
 // Error implements error interface.
-func (e *CallError) Error() string {
+func (e ServerError) Error() string {
 	return fmt.Sprintf("error status code: %d", e.StatusCode)
 }
 
@@ -26,7 +26,17 @@ type ValidationError struct {
 }
 
 // Error implements error interface.
-func (e *ValidationError) Error() string {
+func (e ValidationError) Error() string {
 	str, _ := json.Marshal(e)
 	return string(str)
+}
+
+// UnknownError represents possible unknown error.
+type UnknownError struct {
+	StatusCode int
+}
+
+// Error implements error interface.
+func (e UnknownError) Error() string {
+	return fmt.Sprintf("unknown status code: %d", e.StatusCode)
 }

@@ -79,7 +79,7 @@ func OptEndpoint(endpoint string) Option {
 }
 
 // Call does HTTP request with given params using set HTTP client. Response will be decoded into respObj.
-// CallError may be returned if something went wrong. If API return error as response, then Call returns error of type checkout.CallError.
+// ServerError may be returned if something went wrong. If API return error as response, then Call returns error of type checkout.ServerError.
 func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey string, reqObj interface{}, respObj interface{}) (statusCode int, callErr error) {
 	var reqBody io.Reader
 
@@ -115,8 +115,11 @@ func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey s
 		}
 	}()
 
-	// Check for validation error with code 422
-	if resp.StatusCode == http.StatusUnprocessableEntity {
+	switch {
+	case resp.StatusCode >= http.StatusInternalServerError, resp.StatusCode == http.StatusTooManyRequests:
+		return resp.StatusCode, ServerError{StatusCode: resp.StatusCode}
+
+	case resp.StatusCode == http.StatusUnprocessableEntity:
 		respBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return resp.StatusCode, errors.Wrap(err, "failed to read response body")
@@ -125,14 +128,11 @@ func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey s
 		if err := json.Unmarshal(respBody, &validationError); err != nil {
 			return resp.StatusCode, errors.Wrapf(err, "failed to unmarshal response error with status %d: %s", resp.StatusCode, string(respBody))
 		}
-		return resp.StatusCode, &validationError
-	}
+		return resp.StatusCode, validationError
 
-	// All codes below 400 are supposed to be business errors and should be handled by entity clients
-	if resp.StatusCode >= http.StatusBadRequest {
-		return resp.StatusCode, &CallError{
-			StatusCode: resp.StatusCode,
-		}
+	case resp.StatusCode >= http.StatusBadRequest:
+		// All other 4xx codes should be handled by entity clients
+		return resp.StatusCode, nil
 	}
 
 	// Decode response into a struct if it was given

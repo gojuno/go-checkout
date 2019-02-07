@@ -144,11 +144,11 @@ func TestCall_WithResponse(t *testing.T) {
 	}
 }
 
-func TestCall_WithCallError(t *testing.T) {
+func TestCall_WithServerError(t *testing.T) {
 	httpClientMock := &httpClientMock{
 		do: func(r *http.Request) (*http.Response, error) {
 			return &http.Response{
-				StatusCode: http.StatusBadRequest,
+				StatusCode: http.StatusInternalServerError,
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"category":"category_test"}`)),
 			}, nil
 		},
@@ -172,15 +172,15 @@ func TestCall_WithCallError(t *testing.T) {
 	if err == nil {
 		t.Error("Call didn't return error")
 	}
-	if callErr, ok := err.(*CallError); ok {
-		if callErr.StatusCode != http.StatusBadRequest {
-			t.Errorf("Invalid error status code: %d", callErr.StatusCode)
+	if serverErr, ok := err.(ServerError); ok {
+		if serverErr.StatusCode != http.StatusInternalServerError {
+			t.Errorf("Invalid error status code: %d", serverErr.StatusCode)
 		}
 	} else {
 		t.Errorf("Call return invalid error type: %T", err)
 	}
 
-	if statusCode != http.StatusBadRequest {
+	if statusCode != http.StatusInternalServerError {
 		t.Errorf("Call returned unexpected status code: %d", statusCode)
 	}
 }

@@ -3,6 +3,7 @@ package checkout
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 )
 
@@ -90,6 +91,15 @@ type CaptureParams struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
+type PaymentError struct {
+	Reason string
+}
+
+// Error implements error interface.
+func (e PaymentError) Error() string {
+	return fmt.Sprintf("payment error reason: %s", e.Reason)
+}
+
 const (
 	PaymentStatusAuthorized   PaymentStatus = "Authorized"
 	PaymentStatusCaptured     PaymentStatus = "Captured"
@@ -100,43 +110,88 @@ const (
 	paymentsPath = "payments"
 )
 
+var (
+	ErrPaymentNotFound   = PaymentError{Reason: "Payment not found"}
+	ErrVoidNotAllowed    = PaymentError{Reason: "Void not allowed"}
+	ErrRefundNotAllowed  = PaymentError{Reason: "Refund not allowed"}
+	ErrCaptureNotAllowed = PaymentError{Reason: "Capture not allowed"}
+)
+
 // Create creates new payment
 // Using token: https://docs.checkout.com/v2.0/docs/request-a-card-payment
 // Using existing card: https://docs.checkout.com/v2.0/docs/use-an-existing-card
 func (c *PaymentClient) Create(ctx context.Context, idempotencyKey string, params *CreateParams) (*Payment, error) {
 	payment := &Payment{}
-	if _, err := c.Caller.Call(ctx, "POST", paymentsPath, idempotencyKey, params, payment); err != nil {
+	statusCode, err := c.Caller.Call(ctx, "POST", paymentsPath, idempotencyKey, params, payment)
+	if err != nil {
 		return nil, err
 	}
-	return payment, nil
+
+	switch statusCode {
+	case http.StatusCreated, http.StatusAccepted:
+		return payment, nil
+	default:
+		return nil, UnknownError{StatusCode: statusCode}
+	}
 }
 
 // Void cancels a non-captured payment
 // https://docs.checkout.com/v2.0/docs/void-a-payment
 func (c *PaymentClient) Void(ctx context.Context, paymentID string, params *VoidParams) error {
-	if _, err := c.Caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/voids", paymentsPath, paymentID), "", params, nil); err != nil {
-		// TODO handle error codes
+	statusCode, err := c.Caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/voids", paymentsPath, paymentID), "", params, nil)
+	if err != nil {
 		return err
 	}
-	return nil
+
+	switch statusCode {
+	case http.StatusAccepted:
+		return nil
+	case http.StatusForbidden:
+		return ErrVoidNotAllowed
+	case http.StatusNotFound:
+		return ErrPaymentNotFound
+	default:
+		return UnknownError{StatusCode: statusCode}
+	}
 }
 
 // Refund refunds a captured payment
 // https://docs.checkout.com/v2.0/docs/refund-a-payment
 func (c *PaymentClient) Refund(ctx context.Context, paymentID string, params *RefundParams) error {
-	if _, err := c.Caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/refunds", paymentsPath, paymentID), "", params, nil); err != nil {
-		// TODO handle error codes
+	statusCode, err := c.Caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/refunds", paymentsPath, paymentID), "", params, nil)
+	if err != nil {
 		return err
 	}
-	return nil
+
+	switch statusCode {
+	case http.StatusAccepted:
+		return nil
+	case http.StatusForbidden:
+		return ErrRefundNotAllowed
+	case http.StatusNotFound:
+		return ErrPaymentNotFound
+	default:
+		return UnknownError{StatusCode: statusCode}
+	}
+
 }
 
 // Capture captures a non-captured payment
 // https://docs.checkout.com/v2.0/docs/capture-a-payment
 func (c *PaymentClient) Capture(ctx context.Context, paymentID string, params *CaptureParams) error {
-	if _, err := c.Caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/captures", paymentsPath, paymentID), "", params, nil); err != nil {
-		// TODO handle error codes
+	statusCode, err := c.Caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/captures", paymentsPath, paymentID), "", params, nil)
+	if err != nil {
 		return err
 	}
-	return nil
+
+	switch statusCode {
+	case http.StatusAccepted:
+		return nil
+	case http.StatusForbidden:
+		return ErrCaptureNotAllowed
+	case http.StatusNotFound:
+		return ErrPaymentNotFound
+	default:
+		return UnknownError{StatusCode: statusCode}
+	}
 }
