@@ -68,9 +68,11 @@ type CreateParams struct {
 		Type  string `json:"type"`
 		ID    string `json:"id,omitempty"`
 		Token string `json:"token,omitempty"`
+		CVV   string `json:"cvv,omitempty"`
 	} `json:"source"`
 	Amount    uint   `json:"amount"`
 	Currency  uint   `json:"currency"`
+	Capture   *bool  `json:"capture,omitempty"`
 	Reference string `json:"reference,omitempty"`
 }
 
