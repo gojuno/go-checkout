@@ -125,7 +125,7 @@ func TestCall_WithResponse(t *testing.T) {
 	statusCode, err := client.Call(
 		context.Background(),
 		"POST",
-		"somepath",
+		"/somepath",
 		"idempotency_key",
 		&req,
 		&response,
