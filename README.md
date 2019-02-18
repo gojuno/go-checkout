@@ -1,4 +1,4 @@
-# Checkout.com API client
+# Checkout.com API client [![GoDoc](https://godoc.org/github.com/gojuno/go-checkout?status.svg)](http://godoc.org/github.com/gojuno/go-checkout) [![Build Status](https://travis-ci.org/gojuno/go-checkout.svg?branch=master)](https://travis-ci.org/gojuno/go-checkout)
 
 This repo contains Checkout.com API client written in Go.
 
