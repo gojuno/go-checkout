@@ -10,28 +10,30 @@ import (
 // PaymentClient is a client for work with Payment entity.
 // https://docs.checkout.com/v2.0/docs/payments-quickstart
 type PaymentClient struct {
-	Caller Caller
+	caller Caller
 }
+
+type SourceType string
 
 type PaymentStatus string
 
 type PaymentSource struct {
-	ID            string `json:"id"`
-	Type          string `json:"type"`
-	ExpiryMonth   uint   `json:"expiry_month"`
-	ExpiryYear    uint   `json:"expiry_year"`
-	Scheme        string `json:"scheme"`
-	Last4         string `json:"last4"`
-	Fingerprint   string `json:"fingerprint"`
-	BIN           string `json:"bin"`
-	CardType      string `json:"card_type"`
-	CardCategory  string `json:"card_category"`
-	Issuer        string `json:"issuer"`
-	IssuerCountry string `json:"issuer_country"`
-	ProductID     string `json:"product_id"`
-	ProductType   string `json:"product_type"`
-	AVSCheck      string `json:"avs_check"`
-	CVVCheck      string `json:"cvv_check"`
+	ID            string     `json:"id"`
+	Type          SourceType `json:"type"`
+	ExpiryMonth   uint       `json:"expiry_month"`
+	ExpiryYear    uint       `json:"expiry_year"`
+	Scheme        string     `json:"scheme"`
+	Last4         string     `json:"last4"`
+	Fingerprint   string     `json:"fingerprint"`
+	BIN           string     `json:"bin"`
+	CardType      string     `json:"card_type"`
+	CardCategory  string     `json:"card_category"`
+	Issuer        string     `json:"issuer"`
+	IssuerCountry string     `json:"issuer_country"`
+	ProductID     string     `json:"product_id"`
+	ProductType   string     `json:"product_type"`
+	AVSCheck      string     `json:"avs_check"`
+	CVVCheck      string     `json:"cvv_check"`
 }
 
 type Customer struct {
@@ -48,7 +50,7 @@ type Payment struct {
 	ID              string        `json:"id"`
 	ActionID        string        `json:"action_id"`
 	Amount          uint          `json:"amount"`
-	Currency        uint          `json:"currency"`
+	Currency        string        `json:"currency"`
 	Approved        bool          `json:"approved"`
 	Status          PaymentStatus `json:"status"`
 	AuthCode        string        `json:"auth_code"`
@@ -63,15 +65,20 @@ type Payment struct {
 	Reference       string        `json:"reference"`
 }
 
+type Source struct {
+	Type        SourceType `json:"type"`                   // possible values: card, token, id
+	ID          string     `json:"id,omitempty"`           // specify, if type is "id"
+	Token       string     `json:"token,omitempty"`        // specify, if type is "token"
+	Number      string     `json:"number,omitempty"`       // specify, if type is "card"
+	ExpiryMonth uint       `json:"expiry_month,omitempty"` // specify, if type is "card"
+	ExpiryYear  uint       `json:"expiry_year,omitempty"`  // specify, if type is "card"
+	CVV         string     `json:"cvv,omitempty"`
+}
+
 type CreateParams struct {
-	Source struct {
-		Type  string `json:"type"`
-		ID    string `json:"id,omitempty"`
-		Token string `json:"token,omitempty"`
-		CVV   string `json:"cvv,omitempty"`
-	} `json:"source"`
+	Source    Source `json:"source"`
 	Amount    uint   `json:"amount"`
-	Currency  uint   `json:"currency"`
+	Currency  string `json:"currency"`
 	Capture   *bool  `json:"capture,omitempty"`
 	Reference string `json:"reference,omitempty"`
 }
@@ -109,7 +116,11 @@ const (
 	PaymentStatusDeclined     PaymentStatus = "Declined"
 	PaymentStatusPending      PaymentStatus = "Pending"
 
-	paymentsPath = "payments"
+	SourceTypeCard  SourceType = "card"
+	SourceTypeToken SourceType = "token"
+	SourceTypeID    SourceType = "id"
+
+	paymentsPath = "/payments"
 )
 
 var (
@@ -124,7 +135,7 @@ var (
 // Using existing card: https://docs.checkout.com/v2.0/docs/use-an-existing-card
 func (c *PaymentClient) Create(ctx context.Context, idempotencyKey string, params *CreateParams) (*Payment, error) {
 	payment := &Payment{}
-	statusCode, err := c.Caller.Call(ctx, "POST", paymentsPath, idempotencyKey, params, payment)
+	statusCode, err := c.caller.Call(ctx, "POST", paymentsPath, idempotencyKey, params, payment)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +151,7 @@ func (c *PaymentClient) Create(ctx context.Context, idempotencyKey string, param
 // Void cancels a non-captured payment
 // https://docs.checkout.com/v2.0/docs/void-a-payment
 func (c *PaymentClient) Void(ctx context.Context, paymentID string, params *VoidParams) error {
-	statusCode, err := c.Caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/voids", paymentsPath, paymentID), "", params, nil)
+	statusCode, err := c.caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/voids", paymentsPath, paymentID), "", params, nil)
 	if err != nil {
 		return err
 	}
@@ -160,7 +171,7 @@ func (c *PaymentClient) Void(ctx context.Context, paymentID string, params *Void
 // Refund refunds a captured payment
 // https://docs.checkout.com/v2.0/docs/refund-a-payment
 func (c *PaymentClient) Refund(ctx context.Context, paymentID string, params *RefundParams) error {
-	statusCode, err := c.Caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/refunds", paymentsPath, paymentID), "", params, nil)
+	statusCode, err := c.caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/refunds", paymentsPath, paymentID), "", params, nil)
 	if err != nil {
 		return err
 	}
@@ -181,7 +192,7 @@ func (c *PaymentClient) Refund(ctx context.Context, paymentID string, params *Re
 // Capture captures a non-captured payment
 // https://docs.checkout.com/v2.0/docs/capture-a-payment
 func (c *PaymentClient) Capture(ctx context.Context, paymentID string, params *CaptureParams) error {
-	statusCode, err := c.Caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/captures", paymentsPath, paymentID), "", params, nil)
+	statusCode, err := c.caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/captures", paymentsPath, paymentID), "", params, nil)
 	if err != nil {
 		return err
 	}

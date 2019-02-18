@@ -37,7 +37,8 @@ type Client struct {
 }
 
 const (
-	defaultEndpoint = "https://api.checkout.com/"
+	EndpointLive    = "https://api.checkout.com"
+	EndpointSandbox = "https://api.sandbox.checkout.com"
 
 	headerAuthorization = "Authorization"
 	headerIdempotency   = "Cko-Idempotency-Key"
@@ -47,7 +48,7 @@ const (
 func New(options ...Option) *Client {
 	c := &Client{
 		httpClient: http.DefaultClient,
-		endpoint:   defaultEndpoint,
+		endpoint:   EndpointLive,
 	}
 
 	for _, option := range options {
@@ -115,32 +116,37 @@ func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey s
 		}
 	}()
 
-	switch {
-	case resp.StatusCode >= http.StatusInternalServerError, resp.StatusCode == http.StatusTooManyRequests:
-		return resp.StatusCode, ServerError{StatusCode: resp.StatusCode}
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return resp.StatusCode, errors.Wrap(err, "failed to read response body")
+	}
 
-	case resp.StatusCode == http.StatusUnprocessableEntity:
-		respBody, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return resp.StatusCode, errors.Wrap(err, "failed to read response body")
-		}
-		var validationError ValidationError
-		if err := json.Unmarshal(respBody, &validationError); err != nil {
-			return resp.StatusCode, errors.Wrapf(err, "failed to unmarshal response error with status %d: %s", resp.StatusCode, string(respBody))
-		}
-		return resp.StatusCode, validationError
+	if resp.StatusCode >= http.StatusBadRequest {
+		switch {
+		case resp.StatusCode == http.StatusUnauthorized, resp.StatusCode == http.StatusTooManyRequests:
+			return resp.StatusCode, ServerError{
+				StatusCode: resp.StatusCode,
+			}
+		case resp.StatusCode >= http.StatusInternalServerError, resp.StatusCode == http.StatusTooManyRequests, resp.StatusCode == http.StatusUnprocessableEntity:
+			var errorResponse ErrorResponse
 
-	case resp.StatusCode >= http.StatusBadRequest:
-		// All other 4xx codes should be handled by entity clients
-		return resp.StatusCode, nil
+			if err := json.Unmarshal(respBody, &errorResponse); err != nil {
+				return resp.StatusCode, errors.Wrapf(err, "failed to unmarshal response error with status %d: %s", resp.StatusCode, string(respBody))
+			}
+
+			return resp.StatusCode, ServerError{
+				StatusCode: resp.StatusCode,
+				Response:   &errorResponse,
+			}
+
+		default:
+			// All other 4xx codes should be handled by entity clients
+			return resp.StatusCode, nil
+		}
 	}
 
 	// Decode response into a struct if it was given
 	if respObj != nil {
-		respBody, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return resp.StatusCode, errors.Wrap(err, "failed to read response body")
-		}
 		if err := json.Unmarshal(respBody, respObj); err != nil {
 			return resp.StatusCode, errors.Wrapf(err, "failed to unmarshal response body: %s", string(respBody))
 		}
@@ -151,5 +157,5 @@ func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey s
 
 // Payment creates client for work with corresponding entity.
 func (c *Client) Payment() *PaymentClient {
-	return &PaymentClient{Caller: c}
+	return &PaymentClient{caller: c}
 }
