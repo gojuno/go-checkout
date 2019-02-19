@@ -18,7 +18,7 @@ import (
 // Client implements this interface and pass itself to entity clients. You may create entity clients with own caller for
 // test purposes.
 type Caller interface {
-	Call(ctx context.Context, method, path string, idempotencyKey string, reqObj interface{}, respObj interface{}) (statusCode int, callErr error)
+	Call(ctx context.Context, method, path, idempotencyKey string, reqObj, respObj interface{}) (statusCode int, callErr error)
 }
 
 // HTTPClient is interface fot HTTP client. Built-in net/http.Client implements this interface as well.
@@ -81,7 +81,7 @@ func OptEndpoint(endpoint string) Option {
 
 // Call does HTTP request with given params using set HTTP client. Response will be decoded into respObj.
 // ServerError may be returned if something went wrong. If API return error as response, then Call returns error of type checkout.ServerError.
-func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey string, reqObj interface{}, respObj interface{}) (statusCode int, callErr error) {
+func (c *Client) Call(ctx context.Context, method, path, idempotencyKey string, reqObj, respObj interface{}) (statusCode int, callErr error) {
 	var reqBody io.Reader
 
 	if reqObj != nil {
