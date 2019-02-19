@@ -127,7 +127,7 @@ func (c *Client) Call(ctx context.Context, method, path string, idempotencyKey s
 			return resp.StatusCode, ServerError{
 				StatusCode: resp.StatusCode,
 			}
-		case resp.StatusCode >= http.StatusInternalServerError, resp.StatusCode == http.StatusTooManyRequests, resp.StatusCode == http.StatusUnprocessableEntity:
+		case resp.StatusCode >= http.StatusInternalServerError, resp.StatusCode == http.StatusUnprocessableEntity:
 			var errorResponse ErrorResponse
 
 			if err := json.Unmarshal(respBody, &errorResponse); err != nil {
