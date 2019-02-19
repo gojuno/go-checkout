@@ -89,7 +89,7 @@ func (c *Client) Call(ctx context.Context, method, path, idempotencyKey string, 
 		if err != nil {
 			return 0, errors.Wrap(err, "failed to marshal request body")
 		}
-		reqBody = bytes.NewBuffer(reqBodyBytes)
+		reqBody = bytes.NewReader(reqBodyBytes)
 	}
 
 	req, err := http.NewRequest(method, c.endpoint+path, reqBody)
