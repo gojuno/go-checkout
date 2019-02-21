@@ -15,6 +15,10 @@ type PaymentClient struct {
 
 type SourceType string
 
+type Scheme string
+
+type CardType string
+
 type PaymentStatus string
 
 type PaymentSource struct {
@@ -22,11 +26,11 @@ type PaymentSource struct {
 	Type          SourceType `json:"type"`
 	ExpiryMonth   uint       `json:"expiry_month"`
 	ExpiryYear    uint       `json:"expiry_year"`
-	Scheme        string     `json:"scheme"`
+	Scheme        Scheme     `json:"scheme"`
 	Last4         string     `json:"last4"`
 	Fingerprint   string     `json:"fingerprint"`
 	BIN           string     `json:"bin"`
-	CardType      string     `json:"card_type"`
+	CardType      CardType   `json:"card_type"`
 	CardCategory  string     `json:"card_category"`
 	Issuer        string     `json:"issuer"`
 	IssuerCountry string     `json:"issuer_country"`
@@ -119,6 +123,18 @@ const (
 	SourceTypeCard  SourceType = "card"
 	SourceTypeToken SourceType = "token"
 	SourceTypeID    SourceType = "id"
+
+	SchemeVisa            Scheme = "Visa"
+	SchemeMastercard      Scheme = "Mastercard"
+	SchemeAmericanExpress Scheme = "American Express"
+	SchemeJCB             Scheme = "JCB"
+	SchemeDinersClub      Scheme = "Diners Club International"
+	SchemeDiscover        Scheme = "Discover"
+
+	CardTypeCredit  CardType = "Credit"
+	CardTypeDebit   CardType = "Debit"
+	CardTypePrepaid CardType = "Prepaid"
+	CardTypeCharge  CardType = "Charge"
 
 	paymentsPath = "/payments"
 )
