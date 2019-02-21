@@ -34,14 +34,24 @@ client := checkout.New(
 // Create new payment
 payment, err := client.Payment().Create(
 	context.Background(),
-	"payment_idempotency_key",
+	"create_idempotency_key",
 	&checkout.CreateParams{
-        Source:   checkout.Source{
-            Type: checkout.SourceTypeID,
-            ID:   "src_vjkl7cyod4zejpkk5dwpvla7ca",
-        },
-        Amount:   2000,
-        Currency: "USD",
+		Source:   checkout.Source{
+			Type: checkout.SourceTypeID,
+			ID:   "src_vjkl7cyod4zejpkk5dwpvla7ca",
+		},
+		Amount:   2000,
+		Currency: "USD",
+	},
+)
+
+// Refund payment
+err = client.Payment().Refund(
+	context.Background(),
+	payment.ID,
+	"refund_idempotency_key",
+	&checkout.RefundParams{
+		Amount: 1000,
 	},
 )
 ```
