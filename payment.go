@@ -22,22 +22,33 @@ type CardType string
 type PaymentStatus string
 
 type PaymentSource struct {
-	ID            string     `json:"id"`
-	Type          SourceType `json:"type"`
-	ExpiryMonth   uint       `json:"expiry_month"`
-	ExpiryYear    uint       `json:"expiry_year"`
-	Scheme        Scheme     `json:"scheme"`
-	Last4         string     `json:"last4"`
-	Fingerprint   string     `json:"fingerprint"`
-	BIN           string     `json:"bin"`
-	CardType      CardType   `json:"card_type"`
-	CardCategory  string     `json:"card_category"`
-	Issuer        string     `json:"issuer"`
-	IssuerCountry string     `json:"issuer_country"`
-	ProductID     string     `json:"product_id"`
-	ProductType   string     `json:"product_type"`
-	AVSCheck      string     `json:"avs_check"`
-	CVVCheck      string     `json:"cvv_check"`
+	ID             string         `json:"id"`
+	Type           SourceType     `json:"type"`
+	BillingAddress BillingAddress `json:"billing_address"`
+	ExpiryMonth    uint           `json:"expiry_month"`
+	ExpiryYear     uint           `json:"expiry_year"`
+	Name           string         `json:"name"`
+	Scheme         Scheme         `json:"scheme"`
+	Last4          string         `json:"last4"`
+	Fingerprint    string         `json:"fingerprint"`
+	BIN            string         `json:"bin"`
+	CardType       CardType       `json:"card_type"`
+	CardCategory   string         `json:"card_category"`
+	Issuer         string         `json:"issuer"`
+	IssuerCountry  string         `json:"issuer_country"`
+	ProductID      string         `json:"product_id"`
+	ProductType    string         `json:"product_type"`
+	AVSCheck       string         `json:"avs_check"`
+	CVVCheck       string         `json:"cvv_check"`
+}
+
+type BillingAddress struct {
+	AddressLine1 string `json:"address_line1"`
+	AddressLine2 string `json:"address_line2"`
+	ZIP          string `json:"zip"`
+	City         string `json:"city"`
+	State        string `json:"state"`
+	Country      string `json:"country"`
 }
 
 type Customer struct {
