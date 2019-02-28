@@ -31,26 +31,28 @@ client := checkout.New(
 	checkout.OptSecretKey("your_secret_key"),
 )
 
+paymentClient := payment.NewClient(client)
+
 // Create new payment
-payment, err := client.Payment().Create(
+p, err := paymentClient.Create(
 	context.Background(),
-	"create_idempotency_key",
-	&checkout.CreateParams{
-		Source:   checkout.Source{
-			Type: checkout.SourceTypeID,
-			ID:   "src_vjkl7cyod4zejpkk5dwpvla7ca",
-		},
-		Amount:   2000,
-		Currency: "USD",
+	"payment_idempotency_key",
+	&payment.CreateParams{
+        Source:   payment.CreationSource{
+            Type: payment.SourceTypeID,
+            ID:   "src_vjkl7cyod4zejpkk5dwpvla7ca",
+        },
+        Amount:   2000,
+        Currency: "USD",
 	},
 )
 
 // Refund payment
-err = client.Payment().Refund(
+err = paymentClient.Refund(
 	context.Background(),
-	payment.ID,
+	p.ID,
 	"refund_idempotency_key",
-	&checkout.RefundParams{
+	&payment.RefundParams{
 		Amount: 1000,
 	},
 )
