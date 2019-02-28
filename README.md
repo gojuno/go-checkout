@@ -32,12 +32,12 @@ client := checkout.New(
 )
 
 // Create new payment
-payment, err := client.Payment().Create(
+p, err := payment.NewClient(client).Create(
 	context.Background(),
 	"payment_idempotency_key",
-	&checkout.CreateParams{
-        Source:   checkout.Source{
-            Type: checkout.SourceTypeID,
+	&payment.CreateParams{
+        Source:   payment.CreationSource{
+            Type: payment.SourceTypeID,
             ID:   "src_vjkl7cyod4zejpkk5dwpvla7ca",
         },
         Amount:   2000,
