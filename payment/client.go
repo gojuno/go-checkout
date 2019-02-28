@@ -1,34 +1,42 @@
-package checkout
+package payment
 
 import (
 	"context"
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/gojuno/go-checkout"
 )
 
-// PaymentClient is a client for work with Payment entity.
+// Caller makes HTTP call with given options and decode response into given struct.
+// checkout.Client implements this interface. You may create payment.Client with own caller for test purposes.
+type Caller interface {
+	Call(ctx context.Context, method, path, idempotencyKey string, reqObj, respObj interface{}) (statusCode int, callErr error)
+}
+
+// Client is a client for work with Payment entity.
 // https://docs.checkout.com/v2.0/docs/payments-quickstart
-type PaymentClient struct {
+type Client struct {
 	caller Caller
 }
 
 type SourceType string
 
-type Scheme string
+type SourceScheme string
 
 type CardType string
 
-type PaymentStatus string
+type Status string
 
-type PaymentSource struct {
+type Source struct {
 	ID             string         `json:"id"`
 	Type           SourceType     `json:"type"`
 	BillingAddress BillingAddress `json:"billing_address"`
 	ExpiryMonth    uint           `json:"expiry_month"`
 	ExpiryYear     uint           `json:"expiry_year"`
 	Name           string         `json:"name"`
-	Scheme         Scheme         `json:"scheme"`
+	Scheme         SourceScheme   `json:"scheme"`
 	Last4          string         `json:"last4"`
 	Fingerprint    string         `json:"fingerprint"`
 	BIN            string         `json:"bin"`
@@ -57,30 +65,30 @@ type Customer struct {
 	Name  string `json:"name"`
 }
 
-type PaymentRisk struct {
+type Risk struct {
 	Flagged bool `json:"flagged"`
 }
 
 type Payment struct {
-	ID              string        `json:"id"`
-	ActionID        string        `json:"action_id"`
-	Amount          uint          `json:"amount"`
-	Currency        string        `json:"currency"`
-	Approved        bool          `json:"approved"`
-	Status          PaymentStatus `json:"status"`
-	AuthCode        string        `json:"auth_code"`
-	ECI             string        `json:"eci"`
-	SchemeID        string        `json:"scheme_id"`
-	ResponseCode    string        `json:"response_code"`
-	ResponseSummary string        `json:"response_summary"`
-	Risk            PaymentRisk   `json:"risk"`
-	Source          PaymentSource `json:"source"`
-	Customer        Customer      `json:"customer"`
-	ProcessedOn     time.Time     `json:"processed_on"`
-	Reference       string        `json:"reference"`
+	ID              string    `json:"id"`
+	ActionID        string    `json:"action_id"`
+	Amount          uint      `json:"amount"`
+	Currency        string    `json:"currency"`
+	Approved        bool      `json:"approved"`
+	Status          Status    `json:"status"`
+	AuthCode        string    `json:"auth_code"`
+	ECI             string    `json:"eci"`
+	SchemeID        string    `json:"scheme_id"`
+	ResponseCode    string    `json:"response_code"`
+	ResponseSummary string    `json:"response_summary"`
+	Risk            Risk      `json:"risk"`
+	Source          Source    `json:"source"`
+	Customer        Customer  `json:"customer"`
+	ProcessedOn     time.Time `json:"processed_on"`
+	Reference       string    `json:"reference"`
 }
 
-type Source struct {
+type CreationSource struct {
 	Type        SourceType `json:"type"`                   // possible values: card, token, id
 	ID          string     `json:"id,omitempty"`           // specify, if type is "id"
 	Token       string     `json:"token,omitempty"`        // specify, if type is "token"
@@ -91,11 +99,13 @@ type Source struct {
 }
 
 type CreateParams struct {
-	Source    Source `json:"source"`
-	Amount    uint   `json:"amount"`
-	Currency  string `json:"currency"`
-	Capture   *bool  `json:"capture,omitempty"`
-	Reference string `json:"reference,omitempty"`
+	Source      CreationSource         `json:"source"`
+	Amount      uint                   `json:"amount"`
+	Currency    string                 `json:"currency"`
+	Capture     *bool                  `json:"capture,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Reference   string                 `json:"reference,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type VoidParams struct {
@@ -115,32 +125,32 @@ type CaptureParams struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
-type PaymentError struct {
+type Error struct {
 	Reason string
 }
 
 // Error implements error interface.
-func (e PaymentError) Error() string {
+func (e Error) Error() string {
 	return fmt.Sprintf("payment error reason: %s", e.Reason)
 }
 
 const (
-	PaymentStatusAuthorized   PaymentStatus = "Authorized"
-	PaymentStatusCaptured     PaymentStatus = "Captured"
-	PaymentStatusCardVerified PaymentStatus = "Card Verified"
-	PaymentStatusDeclined     PaymentStatus = "Declined"
-	PaymentStatusPending      PaymentStatus = "Pending"
+	StatusAuthorized   Status = "Authorized"
+	StatusCaptured     Status = "Captured"
+	StatusCardVerified Status = "Card Verified"
+	StatusDeclined     Status = "Declined"
+	StatusPending      Status = "Pending"
 
 	SourceTypeCard  SourceType = "card"
 	SourceTypeToken SourceType = "token"
 	SourceTypeID    SourceType = "id"
 
-	SchemeVisa            Scheme = "Visa"
-	SchemeMastercard      Scheme = "Mastercard"
-	SchemeAmericanExpress Scheme = "American Express"
-	SchemeJCB             Scheme = "JCB"
-	SchemeDinersClub      Scheme = "Diners Club International"
-	SchemeDiscover        Scheme = "Discover"
+	SourceSchemeVisa            SourceScheme = "Visa"
+	SourceSchemeMastercard      SourceScheme = "Mastercard"
+	SourceSchemeAmericanExpress SourceScheme = "American Express"
+	SourceSchemeJCB             SourceScheme = "JCB"
+	SourceSchemeDinersClub      SourceScheme = "Diners Club International"
+	SourceSchemeDiscover        SourceScheme = "Discover"
 
 	CardTypeCredit  CardType = "Credit"
 	CardTypeDebit   CardType = "Debit"
@@ -151,16 +161,22 @@ const (
 )
 
 var (
-	ErrPaymentNotFound   = PaymentError{Reason: "Payment not found"}
-	ErrVoidNotAllowed    = PaymentError{Reason: "Void not allowed"}
-	ErrRefundNotAllowed  = PaymentError{Reason: "Refund not allowed"}
-	ErrCaptureNotAllowed = PaymentError{Reason: "Capture not allowed"}
+	ErrPaymentNotFound   = Error{Reason: "Payment not found"}
+	ErrVoidNotAllowed    = Error{Reason: "Void not allowed"}
+	ErrRefundNotAllowed  = Error{Reason: "Refund not allowed"}
+	ErrCaptureNotAllowed = Error{Reason: "Capture not allowed"}
 )
+
+func NewClient(caller Caller) *Client {
+	return &Client{
+		caller: caller,
+	}
+}
 
 // Create creates new payment
 // Using token: https://docs.checkout.com/v2.0/docs/request-a-card-payment
 // Using existing card: https://docs.checkout.com/v2.0/docs/use-an-existing-card
-func (c *PaymentClient) Create(ctx context.Context, idempotencyKey string, params *CreateParams) (*Payment, error) {
+func (c *Client) Create(ctx context.Context, idempotencyKey string, params *CreateParams) (*Payment, error) {
 	payment := &Payment{}
 	statusCode, err := c.caller.Call(ctx, "POST", paymentsPath, idempotencyKey, params, payment)
 	if err != nil {
@@ -171,13 +187,13 @@ func (c *PaymentClient) Create(ctx context.Context, idempotencyKey string, param
 	case http.StatusCreated, http.StatusAccepted:
 		return payment, nil
 	default:
-		return nil, UnknownError{StatusCode: statusCode}
+		return nil, checkout.UnknownError{StatusCode: statusCode}
 	}
 }
 
 // Void cancels a non-captured payment
 // https://docs.checkout.com/v2.0/docs/void-a-payment
-func (c *PaymentClient) Void(ctx context.Context, paymentID string, params *VoidParams) error {
+func (c *Client) Void(ctx context.Context, paymentID string, params *VoidParams) error {
 	statusCode, err := c.caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/voids", paymentsPath, paymentID), "", params, nil)
 	if err != nil {
 		return err
@@ -191,13 +207,13 @@ func (c *PaymentClient) Void(ctx context.Context, paymentID string, params *Void
 	case http.StatusNotFound:
 		return ErrPaymentNotFound
 	default:
-		return UnknownError{StatusCode: statusCode}
+		return checkout.UnknownError{StatusCode: statusCode}
 	}
 }
 
 // Refund refunds a captured payment
 // https://docs.checkout.com/v2.0/docs/refund-a-payment
-func (c *PaymentClient) Refund(ctx context.Context, paymentID string, params *RefundParams) error {
+func (c *Client) Refund(ctx context.Context, paymentID string, params *RefundParams) error {
 	statusCode, err := c.caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/refunds", paymentsPath, paymentID), "", params, nil)
 	if err != nil {
 		return err
@@ -211,14 +227,14 @@ func (c *PaymentClient) Refund(ctx context.Context, paymentID string, params *Re
 	case http.StatusNotFound:
 		return ErrPaymentNotFound
 	default:
-		return UnknownError{StatusCode: statusCode}
+		return checkout.UnknownError{StatusCode: statusCode}
 	}
 
 }
 
 // Capture captures a non-captured payment
 // https://docs.checkout.com/v2.0/docs/capture-a-payment
-func (c *PaymentClient) Capture(ctx context.Context, paymentID string, params *CaptureParams) error {
+func (c *Client) Capture(ctx context.Context, paymentID string, params *CaptureParams) error {
 	statusCode, err := c.caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/captures", paymentsPath, paymentID), "", params, nil)
 	if err != nil {
 		return err
@@ -232,6 +248,6 @@ func (c *PaymentClient) Capture(ctx context.Context, paymentID string, params *C
 	case http.StatusNotFound:
 		return ErrPaymentNotFound
 	default:
-		return UnknownError{StatusCode: statusCode}
+		return checkout.UnknownError{StatusCode: statusCode}
 	}
 }

@@ -14,13 +14,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Caller makes HTTP call with given options and decode response into given struct.
-// Client implements this interface and pass itself to entity clients. You may create entity clients with own caller for
-// test purposes.
-type Caller interface {
-	Call(ctx context.Context, method, path, idempotencyKey string, reqObj, respObj interface{}) (statusCode int, callErr error)
-}
-
 // HTTPClient is interface fot HTTP client. Built-in net/http.Client implements this interface as well.
 type HTTPClient interface {
 	Do(r *http.Request) (*http.Response, error)
@@ -153,9 +146,4 @@ func (c *Client) Call(ctx context.Context, method, path, idempotencyKey string, 
 	}
 
 	return resp.StatusCode, nil
-}
-
-// Payment creates client for work with corresponding entity.
-func (c *Client) Payment() *PaymentClient {
-	return &PaymentClient{caller: c}
 }
