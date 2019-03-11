@@ -31,7 +31,7 @@ type Status string
 
 type Source struct {
 	ID             string         `json:"id"`
-	Type           SourceType     `json:"type"`
+	Type           string         `json:"type"`
 	BillingAddress BillingAddress `json:"billing_address"`
 	ExpiryMonth    uint           `json:"expiry_month"`
 	ExpiryYear     uint           `json:"expiry_year"`
