@@ -213,8 +213,8 @@ func (c *Client) Void(ctx context.Context, paymentID string, params *VoidParams)
 
 // Refund refunds a captured payment
 // https://docs.checkout.com/v2.0/docs/refund-a-payment
-func (c *Client) Refund(ctx context.Context, paymentID string, params *RefundParams) error {
-	statusCode, err := c.caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/refunds", paymentsPath, paymentID), "", params, nil)
+func (c *Client) Refund(ctx context.Context, paymentID string, idempotencyKey string, params *RefundParams) error {
+	statusCode, err := c.caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/refunds", paymentsPath, paymentID), idempotencyKey, params, nil)
 	if err != nil {
 		return err
 	}

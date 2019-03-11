@@ -31,8 +31,10 @@ client := checkout.New(
 	checkout.OptSecretKey("your_secret_key"),
 )
 
+paymentClient := payment.NewClient(client)
+
 // Create new payment
-p, err := payment.NewClient(client).Create(
+p, err := paymentClient.Create(
 	context.Background(),
 	"payment_idempotency_key",
 	&payment.CreateParams{
@@ -42,6 +44,16 @@ p, err := payment.NewClient(client).Create(
         },
         Amount:   2000,
         Currency: "USD",
+	},
+)
+
+// Refund payment
+err = paymentClient.Refund(
+	context.Background(),
+	p.ID,
+	"refund_idempotency_key",
+	&payment.RefundParams{
+		Amount: 1000,
 	},
 )
 ```
