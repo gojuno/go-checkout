@@ -193,8 +193,8 @@ func (c *Client) Create(ctx context.Context, idempotencyKey string, params *Crea
 
 // Void cancels a non-captured payment
 // https://docs.checkout.com/v2.0/docs/void-a-payment
-func (c *Client) Void(ctx context.Context, paymentID string, params *VoidParams) error {
-	statusCode, err := c.caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/voids", paymentsPath, paymentID), "", params, nil)
+func (c *Client) Void(ctx context.Context, paymentID string, idempotencyKey string, params *VoidParams) error {
+	statusCode, err := c.caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/voids", paymentsPath, paymentID), idempotencyKey, params, nil)
 	if err != nil {
 		return err
 	}
@@ -234,8 +234,8 @@ func (c *Client) Refund(ctx context.Context, paymentID string, idempotencyKey st
 
 // Capture captures a non-captured payment
 // https://docs.checkout.com/v2.0/docs/capture-a-payment
-func (c *Client) Capture(ctx context.Context, paymentID string, params *CaptureParams) error {
-	statusCode, err := c.caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/captures", paymentsPath, paymentID), "", params, nil)
+func (c *Client) Capture(ctx context.Context, paymentID string, idempotencyKey string, params *CaptureParams) error {
+	statusCode, err := c.caller.Call(ctx, "POST", fmt.Sprintf("%s/%s/captures", paymentsPath, paymentID), idempotencyKey, params, nil)
 	if err != nil {
 		return err
 	}
